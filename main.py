@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from database import get_connection
 
 # FastAPI App Initialization
 app = FastAPI()
 
-# Temporary Storage (Will be replaced by PostgreSQL later)
-medicine_inventory = []
+
 
 
 # Medicine Model
@@ -19,28 +19,82 @@ class Medicine(BaseModel):
     selling_price: float
 
 
-# Add a Medicine
 @app.post("/add-medicine")
 def add_medicine(medicine: Medicine):
-    medicine_inventory.append(medicine)
+
+    connection = get_connection()
+
+    cursor = connection.cursor()
+
+    query = """
+    INSERT INTO medicines (
+        medicine_name,
+        quantity,
+        manufacturer,
+        expiry_date,
+        batch_number,
+        buying_price,
+        selling_price
+    )
+    VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """
+
+    values = (
+        medicine.medicine_name,
+        medicine.quantity,
+        medicine.manufacturer,
+        medicine.expiry_date,
+        medicine.batch_number,
+        medicine.buying_price,
+        medicine.selling_price
+    )
+
+    cursor.execute(query, values)
+
+    connection.commit()
+
+    cursor.close()
+
     return {
         "message": "Medicine added successfully!"
     }
 
 
-# View All Medicines
 @app.get("/all-medicines")
 def get_all_medicines():
-    return medicine_inventory
 
+    connection = get_connection()
+    cursor = connection.cursor()
 
-# Search Medicine by Name
+    query = "SELECT * FROM medicines"
+
+    cursor.execute(query)
+
+    medicines = cursor.fetchall()
+
+    cursor.close()
+
+    return medicines
+
 @app.get("/search-medicine")
 def search_medicine(name: str):
 
-    for medicine in medicine_inventory:
-        if medicine.medicine_name == name:
-            return medicine
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    query = """
+    SELECT * FROM medicines
+    WHERE medicine_name = %s
+    """
+
+    cursor.execute(query, (name,))
+
+    medicine = cursor.fetchone()
+
+    cursor.close()
+
+    if medicine:
+        return medicine
 
     return {
         "message": "Medicine not found."
@@ -51,16 +105,25 @@ def search_medicine(name: str):
 @app.put("/update-quantity")
 def update_quantity(name: str, quantity: int):
 
-    for medicine in medicine_inventory:
-        if medicine.medicine_name == name:
-            medicine.quantity = quantity
+    connection = get_connection()
+    cursor = connection.cursor()
 
-            return {
-                "message": "Quantity updated successfully!"
-            }
+    query = """
+    UPDATE medicines
+    SET quantity = %s
+    WHERE medicine_name = %s
+    """
+
+    values = (quantity, name)
+
+    cursor.execute(query, values)
+
+    connection.commit()
+
+    cursor.close()
 
     return {
-        "message": "Medicine not found."
+        "message": "Quantity updated successfully!"
     }
 
 
@@ -68,16 +131,22 @@ def update_quantity(name: str, quantity: int):
 @app.delete("/delete-medicine")
 def delete_medicine(name: str):
 
-    for medicine in medicine_inventory:
-        if medicine.medicine_name == name:
-            medicine_inventory.remove(medicine)
+    connection = get_connection()
+    cursor = connection.cursor()
 
-            return {
-                "message": "Medicine deleted successfully!"
-            }
+    query = """
+    DELETE FROM medicines
+    WHERE medicine_name = %s
+    """
+
+    cursor.execute(query, (name,))
+
+    connection.commit()
+
+    cursor.close()
 
     return {
-        "message": "Medicine not found."
+        "message": "Medicine deleted successfully!"
     }
 
 
@@ -85,10 +154,18 @@ def delete_medicine(name: str):
 @app.get("/low-stock")
 def low_stock():
 
-    low_stock_medicines = []
+    connection = get_connection()
+    cursor = connection.cursor()
 
-    for medicine in medicine_inventory:
-        if medicine.quantity < 10:
-            low_stock_medicines.append(medicine)
+    query = """
+    SELECT * FROM medicines
+    WHERE quantity < 10
+    """
 
-    return low_stock_medicines
+    cursor.execute(query)
+
+    medicines = cursor.fetchall()
+
+    cursor.close()
+
+    return medicines
