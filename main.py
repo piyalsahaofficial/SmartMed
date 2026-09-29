@@ -1,11 +1,11 @@
+
 from fastapi import FastAPI
 from pydantic import BaseModel
 from database import get_connection
 
+
 # FastAPI App Initialization
 app = FastAPI()
-
-
 
 
 # Medicine Model
@@ -19,11 +19,11 @@ class Medicine(BaseModel):
     selling_price: float
 
 
+# Add Medicine
 @app.post("/add-medicine")
 def add_medicine(medicine: Medicine):
 
     connection = get_connection()
-
     cursor = connection.cursor()
 
     query = """
@@ -50,16 +50,17 @@ def add_medicine(medicine: Medicine):
     )
 
     cursor.execute(query, values)
-
     connection.commit()
 
     cursor.close()
+    connection.close()
 
     return {
         "message": "Medicine added successfully!"
     }
 
 
+# Get All Medicines
 @app.get("/all-medicines")
 def get_all_medicines():
 
@@ -73,9 +74,12 @@ def get_all_medicines():
     medicines = cursor.fetchall()
 
     cursor.close()
+    connection.close()
 
     return medicines
 
+
+# Search Medicine
 @app.get("/search-medicine")
 def search_medicine(name: str):
 
@@ -92,6 +96,7 @@ def search_medicine(name: str):
     medicine = cursor.fetchone()
 
     cursor.close()
+    connection.close()
 
     if medicine:
         return medicine
@@ -117,10 +122,10 @@ def update_quantity(name: str, quantity: int):
     values = (quantity, name)
 
     cursor.execute(query, values)
-
     connection.commit()
 
     cursor.close()
+    connection.close()
 
     return {
         "message": "Quantity updated successfully!"
@@ -140,10 +145,10 @@ def delete_medicine(name: str):
     """
 
     cursor.execute(query, (name,))
-
     connection.commit()
 
     cursor.close()
+    connection.close()
 
     return {
         "message": "Medicine deleted successfully!"
@@ -167,5 +172,7 @@ def low_stock():
     medicines = cursor.fetchall()
 
     cursor.close()
+    connection.close()
 
     return medicines
+
