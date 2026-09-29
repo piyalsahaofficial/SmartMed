@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from database import get_connection
+from datetime import date, timedelta
 
 
 # FastAPI App Initialization
@@ -176,3 +177,28 @@ def low_stock():
 
     return medicines
 
+
+# Check Medicines Expiring Within 30 Days
+@app.get("/expiring-soon")
+def expiring_soon():
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    today = date.today()
+    future_date = today + timedelta(days=30)
+
+    query = """
+    SELECT * FROM medicines
+    WHERE expiry_date >= %s
+    AND expiry_date <= %s
+    """
+
+    cursor.execute(query, (today, future_date))
+
+    medicines = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    return medicines
