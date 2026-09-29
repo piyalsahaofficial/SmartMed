@@ -202,3 +202,90 @@ def expiring_soon():
     connection.close()
 
     return medicines
+
+# Check Medicine Expiry Status
+@app.get("/expiry-status")
+def expiry_status():
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    query = "SELECT * FROM medicines"
+
+    cursor.execute(query)
+
+    medicines = cursor.fetchall()
+
+    cursor.close()
+    connection.close()
+
+    result = []
+
+    today = date.today()
+
+    for medicine in medicines:
+
+        expiry_date = medicine[4]
+
+        if expiry_date < today:
+
+            status = "Expired"
+
+        elif expiry_date <= today + timedelta(days=30):
+
+            status = "Expiring Soon"
+
+        else:
+
+            status = "Safe"
+
+        result.append({
+            "medicine": medicine[1],
+            "expiry_date": expiry_date,
+            "status": status
+        })
+
+    return result
+
+# SmartMed Dashboard Summary
+@app.get("/dashboard-summary")
+def dashboard_summary():
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    # Total medicines
+    cursor.execute("SELECT COUNT(*) FROM medicines")
+    total_medicines = cursor.fetchone()[0]
+
+    # Low stock
+    cursor.execute("""
+        SELECT COUNT(*) FROM medicines
+        WHERE quantity < 10
+    """)
+    low_stock = cursor.fetchone()[0]
+
+    # Expired
+    cursor.execute("""
+        SELECT COUNT(*) FROM medicines
+        WHERE expiry_date < CURRENT_DATE
+    """)
+    expired = cursor.fetchone()[0]
+
+    # Expiring within 30 days
+    cursor.execute("""
+        SELECT COUNT(*) FROM medicines
+        WHERE expiry_date >= CURRENT_DATE
+        AND expiry_date <= CURRENT_DATE + INTERVAL '30 days'
+    """)
+    expiring_soon = cursor.fetchone()[0]
+
+    cursor.close()
+    connection.close()
+
+    return {
+        "total_medicines": total_medicines,
+        "low_stock": low_stock,
+        "expired": expired,
+        "expiring_soon": expiring_soon
+    }
